@@ -1,0 +1,28 @@
+# Backend .NET
+bin/
+obj/
+*.user
+
+# Frontend React (cuando se cree)
+node_modules/
+build/
+dist/
+
+# Variables de entorno
+.env
+.env.local
+
+# Base de datos local
+*.mdf
+*.ldf
+*.db
+*.sqlite
+
+# IDEs
+.vs/
+.vscode/
+.idea/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
