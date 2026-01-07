@@ -112,15 +112,15 @@ public class PedidosController : ControllerBase
             var deleted = await _pedidoService.DeleteAsync(id);
 
             if (!deleted)
-                return NotFound(new { message = $"Pedido con ID {id} no encontrado" });
+                return NotFound(new { status = "error", message = $"Pedido con ID {id} no encontrado" });
 
             _logger.LogInformation("Pedido eliminado exitosamente: ID {Id}", id);
-            return NoContent();
+            return Ok(new { status = "success", message = "Pedido eliminado exitosamente" });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error al eliminar el pedido con ID: {Id}", id);
-            return StatusCode(500, new { message = "Error al eliminar el pedido" });
+            return StatusCode(500, new { status = "error", message = "Error al eliminar el pedido" });
         }
     }
 }

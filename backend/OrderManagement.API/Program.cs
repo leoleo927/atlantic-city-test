@@ -1,4 +1,5 @@
 using System.Text;
+using AspNetCoreRateLimit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -9,6 +10,7 @@ using OrderManagement.API.Infrastructure.Data;
 using OrderManagement.API.Infrastructure.Repositories;
 using OrderManagement.API.Middleware;
 using Polly;
+using Polly.CircuitBreaker;
 using Polly.Retry;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,6 +18,12 @@ var builder = WebApplication.CreateBuilder(args);
 // Configuración de Entity Framework Core con SQL Server
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Configuración de Rate Limiting
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
+builder.Services.AddInMemoryRateLimiting();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
 // Configuración de CORS
 builder.Services.AddCors(options =>
@@ -48,7 +56,9 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+        RoleClaimType = "role",
+        NameClaimType = "name"
     };
 });
 
@@ -63,16 +73,23 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<PedidoService>();
 
 // Configuración de Polly para Circuit Breaker y Retry Policies
-var retryPolicy = new ResiliencePipelineBuilder()
+var resiliencePipeline = new ResiliencePipelineBuilder()
     .AddRetry(new RetryStrategyOptions
     {
         MaxRetryAttempts = 3,
         Delay = TimeSpan.FromSeconds(1),
         BackoffType = DelayBackoffType.Exponential
     })
+    .AddCircuitBreaker(new CircuitBreakerStrategyOptions
+    {
+        FailureRatio = 0.5,              // Abre el circuito si 50% de las peticiones fallan
+        SamplingDuration = TimeSpan.FromSeconds(10),  // Ventana de muestreo de 10 segundos
+        MinimumThroughput = 5,           // Mínimo 5 peticiones antes de evaluar
+        BreakDuration = TimeSpan.FromSeconds(30)      // Circuito abierto por 30 segundos
+    })
     .Build();
 
-builder.Services.AddSingleton(retryPolicy);
+builder.Services.AddSingleton(resiliencePipeline);
 
 // Configuración de Controllers
 builder.Services.AddControllers();
@@ -129,10 +146,42 @@ using (var scope = app.Services.CreateScope())
     {
         app.Logger.LogError(ex, "Error al aplicar migraciones");
     }
+
+    // Crear usuario admin por defecto si no existe
+    try
+    {
+        var adminEmail = "admin@test.com";
+        var existingAdmin = await dbContext.Usuarios.FirstOrDefaultAsync(u => u.Email == adminEmail);
+
+        if (existingAdmin == null)
+        {
+            var adminUser = new OrderManagement.API.Domain.Entities.Usuario
+            {
+                Email = adminEmail,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!", workFactor: 11),
+                Nombre = "Administrador",
+                Rol = "Admin",
+                FechaCreacion = DateTime.UtcNow
+            };
+
+            dbContext.Usuarios.Add(adminUser);
+            await dbContext.SaveChangesAsync();
+
+            app.Logger.LogInformation("Usuario admin creado exitosamente - Email: {Email}, Password: Admin123!", adminEmail);
+        }
+        else
+        {
+            app.Logger.LogInformation("Usuario admin ya existe");
+        }
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Error al crear usuario admin");
+    }
 }
 
 // Middleware global de excepciones
-app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+app.UseMiddleware<ExceptionMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -143,7 +192,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// CORS debe ir antes de autenticación y autorización
+app.UseIpRateLimiting();
+
 app.UseCors("AllowReactApp");
 
 app.UseAuthentication();

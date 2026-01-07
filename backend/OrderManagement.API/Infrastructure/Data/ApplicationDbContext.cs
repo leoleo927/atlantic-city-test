@@ -23,19 +23,18 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.NumeroPedido)
                 .IsRequired()
                 .HasMaxLength(50);
-            entity.HasIndex(e => e.NumeroPedido)
-                .IsUnique();
             entity.Property(e => e.Cliente)
                 .IsRequired()
                 .HasMaxLength(150);
+            entity.Property(e => e.FechaCreacion)
+                .IsRequired();
+            entity.Property(e => e.FechaModificacion)
+                .IsRequired(false);
             entity.Property(e => e.Total)
                 .HasColumnType("decimal(10,2)");
             entity.Property(e => e.Estado)
                 .IsRequired()
                 .HasMaxLength(50);
-
-            // Query filter para eliminación lógica
-            entity.HasQueryFilter(e => !e.Eliminado);
         });
 
         // Configuración de Usuario

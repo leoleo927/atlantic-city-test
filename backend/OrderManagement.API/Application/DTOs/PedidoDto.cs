@@ -6,7 +6,6 @@ public class PedidoDto
 {
     public int Id { get; set; }
 
-    [Required(ErrorMessage = "El número de pedido es requerido")]
     [StringLength(50, ErrorMessage = "El número de pedido no puede exceder 50 caracteres")]
     public string NumeroPedido { get; set; } = string.Empty;
 
@@ -14,7 +13,9 @@ public class PedidoDto
     [StringLength(150, ErrorMessage = "El nombre del cliente no puede exceder 150 caracteres")]
     public string Cliente { get; set; } = string.Empty;
 
-    public DateTime Fecha { get; set; }
+    public string FechaCreacion { get; set; } = string.Empty;
+
+    public string? FechaModificacion { get; set; }
 
     [Required(ErrorMessage = "El total es requerido")]
     [Range(0.01, double.MaxValue, ErrorMessage = "El total debe ser mayor que 0")]

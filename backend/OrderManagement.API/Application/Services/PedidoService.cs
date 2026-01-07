@@ -31,17 +31,15 @@ public class PedidoService
         if (dto.Total <= 0)
             return (false, "El total debe ser mayor que 0", null);
 
-        // Validación: Número de pedido único
-        if (await _pedidoRepository.ExisteNumeroPedidoAsync(dto.NumeroPedido))
-            return (false, $"Ya existe un pedido con el número '{dto.NumeroPedido}'", null);
+        // Generar automáticamente el número de pedido
+        var numeroPedido = await _pedidoRepository.GenerarNumeroPedidoAsync();
 
         var pedido = new Pedido
         {
-            NumeroPedido = dto.NumeroPedido,
+            NumeroPedido = numeroPedido,
             Cliente = dto.Cliente,
             Total = dto.Total,
-            Estado = dto.Estado,
-            Fecha = DateTime.UtcNow
+            Estado = dto.Estado
         };
 
         var createdPedido = await _pedidoRepository.CreateAsync(pedido);
@@ -58,11 +56,8 @@ public class PedidoService
         if (dto.Total <= 0)
             return (false, "El total debe ser mayor que 0", null);
 
-        // Validación: Número de pedido único (excluyendo el actual)
-        if (await _pedidoRepository.ExisteNumeroPedidoAsync(dto.NumeroPedido, id))
-            return (false, $"Ya existe un pedido con el número '{dto.NumeroPedido}'", null);
-
-        existingPedido.NumeroPedido = dto.NumeroPedido;
+        // NO permitir editar el número de pedido - se mantiene el original
+        // existingPedido.NumeroPedido NO se modifica
         existingPedido.Cliente = dto.Cliente;
         existingPedido.Total = dto.Total;
         existingPedido.Estado = dto.Estado;
@@ -83,7 +78,8 @@ public class PedidoService
             Id = pedido.Id,
             NumeroPedido = pedido.NumeroPedido,
             Cliente = pedido.Cliente,
-            Fecha = pedido.Fecha,
+            FechaCreacion = pedido.FechaCreacion.ToString("yyyy-MM-dd HH:mm"),
+            FechaModificacion = pedido.FechaModificacion?.ToString("yyyy-MM-dd HH:mm"),
             Total = pedido.Total,
             Estado = pedido.Estado
         };

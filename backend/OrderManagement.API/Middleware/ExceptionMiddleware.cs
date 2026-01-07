@@ -3,15 +3,15 @@ using System.Text.Json;
 
 namespace OrderManagement.API.Middleware;
 
-public class GlobalExceptionHandlerMiddleware
+public class ExceptionMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly ILogger<GlobalExceptionHandlerMiddleware> _logger;
+    private readonly ILogger<ExceptionMiddleware> _logger;
     private readonly IHostEnvironment _env;
 
-    public GlobalExceptionHandlerMiddleware(
+    public ExceptionMiddleware(
         RequestDelegate next,
-        ILogger<GlobalExceptionHandlerMiddleware> logger,
+        ILogger<ExceptionMiddleware> logger,
         IHostEnvironment env)
     {
         _next = next;

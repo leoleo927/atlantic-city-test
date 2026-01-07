@@ -11,4 +11,5 @@ public interface IPedidoRepository
     Task<Pedido> UpdateAsync(Pedido pedido);
     Task<bool> DeleteAsync(int id);
     Task<bool> ExisteNumeroPedidoAsync(string numeroPedido, int? excludeId = null);
+    Task<string> GenerarNumeroPedidoAsync();
 }
